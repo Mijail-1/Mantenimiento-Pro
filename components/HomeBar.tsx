@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { TabType } from './PhoneShell';
-import { UserRole } from '../App';
+import { UserRole } from '../src/App';
 import { HomeIcon, ClipboardList, AlertTriangle, Users, MessageSquareIcon, UserIcon } from './Icons';
 
 interface HomeBarProps {

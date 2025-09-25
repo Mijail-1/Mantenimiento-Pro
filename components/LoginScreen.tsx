@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { UserRole, StaffMember } from '../App';
+import { UserRole, StaffMember } from '../src/App';
 import { Users, UserIcon, DownloadIcon, ArrowLeftIcon } from './Icons';
 
 interface LoginScreenProps {

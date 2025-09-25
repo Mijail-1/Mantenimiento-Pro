@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { TabType } from './PhoneShell';
-import { UserRole, StaffMember, Task, Incident } from '../App';
+import { UserRole, StaffMember, Task, Incident } from '../src/App';
 import { PlusCircle, XIcon, WhatsAppIcon, UserPlusIcon } from './Icons';
 
 const supervisor = { name: 'Supervisor', phone: '5215555555555' };

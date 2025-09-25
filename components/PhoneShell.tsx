@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import Header from './StatusBar';
 import ScreenContent from './ScreenContent';
 import TabBar from './HomeBar';
-import { UserRole, StaffMember, Task, Incident } from '../App';
+import { UserRole, StaffMember, Task, Incident } from '../src/App';
 
 export type AdminTabType = 'dashboard' | 'tasks' | 'incidents' | 'staff' | 'chat';
 export type WorkerTabType = 'my-tasks' | 'report' | 'chat' | 'profile';

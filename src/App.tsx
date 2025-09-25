@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import PhoneShell from './components/PhoneShell';
-import LoginScreen from './components/LoginScreen';
+import PhoneShell from '../components/PhoneShell';
+import LoginScreen from '../components/LoginScreen';
 
 // --- Centralized Types ---
 export type UserRole = 'admin' | 'worker';
