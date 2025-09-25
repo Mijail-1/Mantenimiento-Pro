@@ -1,7 +1,7 @@
 const CACHE_NAME = 'school-clean-pro-v1';
 const URLS_TO_CACHE = [
-  '/',
-  '/index.html',
+  './',
+  './index.html',
 ];
 
 // Evento de instalación: guarda en caché el esqueleto de la aplicación (app shell).
