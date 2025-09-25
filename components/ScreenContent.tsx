@@ -56,7 +56,8 @@ const IncidentBreakdownChart: React.FC<{ data: Record<string, number> }> = ({ da
     Daño: 'bg-red-500',
     Otro: 'bg-gray-500',
   };
-  const totalIncidents = Object.values(data).reduce((sum, count) => sum + count, 0);
+  // FIX: Cast Object.values(data) to number[] to ensure correct type inference for 'sum' and 'count' in reduce.
+  const totalIncidents = (Object.values(data) as number[]).reduce((sum, count) => sum + count, 0);
 
   if (totalIncidents === 0) {
     return <p className="text-center text-gray-500 dark:text-gray-400 mt-4">No hay incidentes que mostrar.</p>;
@@ -64,7 +65,8 @@ const IncidentBreakdownChart: React.FC<{ data: Record<string, number> }> = ({ da
 
   return (
     <div className="space-y-3 mt-4">
-      {Object.entries(data).map(([category, count]) => {
+      {/* FIX: Cast Object.entries(data) to [string, number][] to ensure correct type inference for 'count'. */}
+      {(Object.entries(data) as [string, number][]).map(([category, count]) => {
         const percentage = totalIncidents > 0 ? (count / totalIncidents) * 100 : 0;
         return (
           <div key={category}>
