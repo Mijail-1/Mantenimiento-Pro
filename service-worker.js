@@ -1,8 +1,8 @@
-const CACHE_NAME = 'school-clean-pro-v2'; // Versión actualizada para forzar la actualización del caché
+const CACHE_NAME = 'school-clean-pro-v3'; // Versión actualizada para forzar la actualización del caché
 const URLS_TO_CACHE = [
   './',
   './index.html',
-  './manifest.json',
+  './manifest.json?v=2',
   './index.tsx',
   './App.tsx',
   './components/PhoneShell.tsx',
