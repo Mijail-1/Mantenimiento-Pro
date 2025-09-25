@@ -3,8 +3,6 @@ const URLS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './icon-192x192.png',
-  './icon-512x512.png',
   './index.tsx',
   './App.tsx',
   './components/PhoneShell.tsx',
