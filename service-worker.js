@@ -1,17 +1,26 @@
-const CACHE_NAME = 'school-clean-pro-v1';
+const CACHE_NAME = 'school-clean-pro-v2'; // Versión actualizada para forzar la actualización del caché
 const URLS_TO_CACHE = [
   './',
   './index.html',
+  './manifest.json',
+  './icon-192x192.png',
+  './icon-512x512.png',
+  './index.tsx',
+  './App.tsx',
+  './components/PhoneShell.tsx',
+  './components/StatusBar.tsx',
+  './components/ScreenContent.tsx',
+  './components/HomeBar.tsx',
+  './components/Icons.tsx',
+  './components/LoginScreen.tsx'
 ];
 
-// Evento de instalación: guarda en caché el esqueleto de la aplicación (app shell).
+// Evento de instalación: guarda en caché el esqueleto completo de la aplicación.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
-        // No guardamos recursos externos del CDN en la instalación para que sea rápida.
-        // Se guardarán en caché en la primera carga a través del manejador 'fetch'.
+        console.log('Opened cache and caching all app assets');
         return cache.addAll(URLS_TO_CACHE);
       })
   );
@@ -35,35 +44,32 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// Evento de fetch: sirve desde la caché y, si falla, recurre a la red.
-// Esta es una estrategia "Cache first" que también actualiza la caché.
+// Evento de fetch: sirve desde la caché y, si falla, recurre a la red (estrategia "Cache first").
 self.addEventListener('fetch', (event) => {
-    // Solo manejamos peticiones GET.
-    if (event.request.method !== 'GET') {
+    // Solo manejamos peticiones GET y evitamos las de extensiones de Chrome.
+    if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
         return;
     }
 
   event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(event.request).then((cachedResponse) => {
-            // Devuelve la respuesta de la caché si existe.
-            if (cachedResponse) {
-                return cachedResponse;
-            }
+    caches.match(event.request).then((cachedResponse) => {
+      // Si el recurso está en la caché, lo devuelve.
+      if (cachedResponse) {
+        return cachedResponse;
+      }
 
-            // Si el recurso no está en la caché, lo busca en la red.
-            return fetch(event.request).then((networkResponse) => {
-                // Si la petición es exitosa, clona la respuesta y la guarda en caché.
-                if (networkResponse && networkResponse.status === 200) {
-                     // No guardar en caché las peticiones de extensiones de Chrome que pueden ocurrir en desarrollo.
-                    if (!event.request.url.startsWith('chrome-extension://')) {
-                        cache.put(event.request, networkResponse.clone());
-                    }
-                }
-                // Devuelve la respuesta de la red.
-                return networkResponse;
-            });
+      // Si no está en la caché, lo busca en la red.
+      return fetch(event.request).then((networkResponse) => {
+        // Clona la respuesta para poder guardarla en caché y devolverla al navegador.
+        const responseToCache = networkResponse.clone();
+        
+        caches.open(CACHE_NAME).then((cache) => {
+            // Guarda la nueva respuesta en la caché para futuras peticiones.
+            cache.put(event.request, responseToCache);
         });
+
+        return networkResponse;
+      });
     })
   );
 });
