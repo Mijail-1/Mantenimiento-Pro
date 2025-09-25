@@ -122,25 +122,30 @@ const App: React.FC = () => {
   };
 
 
-  if (!userRole) {
-    return <LoginScreen staff={staff} onLogin={handleLogin} />;
-  }
-
+  // By wrapping the content in a div with h-full, we ensure that the React app
+  // has a root DOM element that correctly inherits the height from the #root element,
+  // solving the issue where the content might otherwise render into a zero-height container.
   return (
-    <PhoneShell 
-      userRole={userRole} 
-      onLogout={handleLogout}
-      staff={staff}
-      onAddStaff={handleAddStaff}
-      onUpdateStaff={handleUpdateStaff}
-      loggedInUser={loggedInUser}
-      tasks={tasks}
-      onAddTask={handleAddTask}
-      onUpdateTaskStatus={handleUpdateTaskStatus}
-      incidents={incidents}
-      onAssignIncident={handleAssignIncident}
-      onAddIncident={handleAddIncident}
-    />
+    <div className="h-full w-full">
+      {!userRole ? (
+        <LoginScreen staff={staff} onLogin={handleLogin} />
+      ) : (
+        <PhoneShell 
+          userRole={userRole} 
+          onLogout={handleLogout}
+          staff={staff}
+          onAddStaff={handleAddStaff}
+          onUpdateStaff={handleUpdateStaff}
+          loggedInUser={loggedInUser}
+          tasks={tasks}
+          onAddTask={handleAddTask}
+          onUpdateTaskStatus={handleUpdateTaskStatus}
+          incidents={incidents}
+          onAssignIncident={handleAssignIncident}
+          onAddIncident={handleAddIncident}
+        />
+      )}
+    </div>
   );
 };
 
