@@ -82,7 +82,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, staff }) => {
 
   if (showAdminLogin) {
      return (
-      <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-gray-50 dark:bg-black font-sans">
+      <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-gray-50 dark:bg-gray-900 font-sans">
         <header className="w-full h-14 px-2 flex items-center flex-shrink-0">
           <button onClick={handleGoBack} className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">
             <ArrowLeftIcon className="h-6 w-6" />
@@ -127,7 +127,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, staff }) => {
 
   if (showWorkerLogin) {
     return (
-      <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-gray-50 dark:bg-black font-sans">
+      <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-gray-50 dark:bg-gray-900 font-sans">
         <header className="w-full h-14 px-2 flex items-center flex-shrink-0">
           <button onClick={handleGoBack} className="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">
             <ArrowLeftIcon className="h-6 w-6" />
@@ -171,7 +171,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, staff }) => {
   }
 
   return (
-    <div className="relative h-screen w-screen max-w-md mx-auto flex flex-col justify-center items-center bg-gray-50 dark:bg-black font-sans p-8 text-center">
+    <div className="relative h-screen w-screen max-w-md mx-auto flex flex-col justify-center items-center bg-gray-50 dark:bg-gray-900 font-sans p-8 text-center">
       <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Mantenimiento Pro</h1>
       <p className="text-gray-500 dark:text-gray-400 mt-2 mb-12">Selecciona tu rol para continuar</p>
       

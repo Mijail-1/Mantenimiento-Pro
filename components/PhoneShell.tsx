@@ -51,7 +51,7 @@ const PhoneShell: React.FC<PhoneShellProps> = ({
   }
 
   return (
-    <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-gray-50 dark:bg-black font-sans shadow-2xl">
+    <div className="h-screen w-screen max-w-md mx-auto flex flex-col bg-gray-50 dark:bg-gray-900 font-sans shadow-2xl">
       <Header title={headerTitle} onLogout={onLogout} />
       <main className="flex-grow overflow-y-auto">
         <ScreenContent 
