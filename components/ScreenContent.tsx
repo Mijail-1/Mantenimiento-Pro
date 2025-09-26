@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TabType } from './PhoneShell';
-import { UserRole, StaffMember, Task, Incident } from '../src/App';
-import { PlusCircle, XIcon, WhatsAppIcon, UserPlusIcon, ArrowLeftIcon, SendIcon, ClockIcon } from './Icons';
+import { UserRole, StaffMember, Task, Incident, SupplyRequest } from '../src/App';
+import { PlusCircle, XIcon, WhatsAppIcon, UserPlusIcon, ArrowLeftIcon, SendIcon, ClockIcon, TrashIcon, CameraIcon, PlayIcon, AlertTriangle, BoxIcon } from './Icons';
 
 const supervisor = { name: 'Supervisor', phone: '5215555555555' };
 
@@ -175,7 +175,7 @@ const DashboardScreen: React.FC<{
                 aria-label={`Ver ${staff.length} miembros del personal`}
             >
                 <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Personal Activo</h3>
-                <p className="text-3xl font-bold text-green-500 mt-2">{staff.length}</p>
+                <p className="text-3xl font-bold text-green-500 mt-2">{staff.filter(s => s.status === 'Activo').length}</p>
             </button>
 
             {/* Task Progress Visualization */}
@@ -290,8 +290,8 @@ const TasksScreen: React.FC<{ tasks: Task[], openModal: () => void, onViewTask: 
         return new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
     };
 
-    const isOverdue = (dateString: string | null) => {
-        if (!dateString) return false;
+    const isOverdue = (dateString: string | null, status: Task['status']) => {
+        if (!dateString || status === 'Completada') return false;
         return new Date(dateString) < new Date();
     };
 
@@ -299,15 +299,15 @@ const TasksScreen: React.FC<{ tasks: Task[], openModal: () => void, onViewTask: 
         <div className="p-4 space-y-3 relative h-full pb-20">
             {tasks.map(task => (
                 <button key={task.id} onClick={() => onViewTask(task)} className="w-full bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex justify-between items-start text-left hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <div className="flex-1 pr-2">
-                        <p className="font-semibold text-gray-800 dark:text-white">{task.title}</p>
+                    <div className="flex-1 pr-2 min-w-0">
+                        <p className="font-semibold text-gray-800 dark:text-white truncate">{task.title}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{task.assignee}</p>
-                        <div className={`flex items-center text-xs mt-2 ${isOverdue(task.dueDate) && task.status !== 'Completada' ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                        <div className={`flex items-center text-xs mt-2 ${isOverdue(task.dueDate, task.status) ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
                            <ClockIcon className="w-3 h-3 mr-1"/>
                            <span>Vence: {formatDate(task.dueDate)}</span>
                         </div>
                     </div>
-                    <div className="flex flex-col items-end space-y-2">
+                    <div className="flex flex-col items-end space-y-2 flex-shrink-0">
                          <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
                             {task.priority}
                         </span>
@@ -327,14 +327,18 @@ const TasksScreen: React.FC<{ tasks: Task[], openModal: () => void, onViewTask: 
 const TaskDetailScreen: React.FC<{
   task: Task;
   onBack: () => void;
-  onAddComment: (taskId: number, commentText: string) => void;
-}> = ({ task, onBack, onAddComment }) => {
+  onAddComment: (taskId: number, commentText: string, author: string) => void;
+  userRole: UserRole;
+  staff: StaffMember[];
+  onUpdateTask: (taskId: number, updates: Partial<Omit<Task, 'id'>>) => void;
+  loggedInUser: StaffMember | null;
+}> = ({ task, onBack, onAddComment, userRole, staff, onUpdateTask, loggedInUser }) => {
     const [newComment, setNewComment] = useState('');
     
     const handleSubmitComment = (e: React.FormEvent) => {
         e.preventDefault();
-        if (newComment.trim()) {
-            onAddComment(task.id, newComment.trim());
+        if (newComment.trim() && loggedInUser) {
+            onAddComment(task.id, newComment.trim(), loggedInUser.name);
             setNewComment('');
         }
     };
@@ -369,7 +373,7 @@ const TaskDetailScreen: React.FC<{
             </header>
             
             {/* Content */}
-            <main className="flex-grow overflow-y-auto p-4 pb-20">
+            <main className="flex-grow overflow-y-auto p-4 pb-32">
                 <div className="space-y-6">
                     {/* Details Card */}
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
@@ -380,12 +384,36 @@ const TaskDetailScreen: React.FC<{
                             <DetailItem label="Prioridad" value={task.priority} />
                             <DetailItem label="Vencimiento" value={formatDueDate(task.dueDate)} />
                         </div>
+                        {userRole === 'admin' && (
+                            <div className="mt-4 pt-4 border-t dark:border-gray-700">
+                                <label htmlFor="reassign-task" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reasignar Tarea</label>
+                                <select
+                                    id="reassign-task"
+                                    value={task.assignee}
+                                    onChange={(e) => onUpdateTask(task.id, { assignee: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                >
+                                    {staff.map(member => (
+                                        <option key={member.id} value={member.name}>{member.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
                     {/* Description Card */}
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
                          <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Descripción</h3>
                          <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{task.description || 'No hay descripción.'}</p>
                     </div>
+
+                    {/* Evidence Photo */}
+                     {task.photo && (
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                            <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Evidencia</h3>
+                            <img src={task.photo} alt="Evidencia de tarea o incidente" className="w-full h-auto rounded-md object-cover" />
+                        </div>
+                    )}
+
                     {/* Comments Card */}
                     <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
                         <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Comentarios</h3>
@@ -408,21 +436,23 @@ const TaskDetailScreen: React.FC<{
                 </div>
             </main>
 
-             {/* Comment Input Footer */}
-            <footer className="w-full max-w-md mx-auto p-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 fixed bottom-16 left-1/2 -translate-x-1/2">
-                <form onSubmit={handleSubmitComment} className="flex items-center space-x-2">
-                    <input 
-                        type="text"
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Añadir un comentario..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    />
-                    <button type="submit" className="bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600" aria-label="Enviar comentario">
-                        <SendIcon className="w-5 h-5"/>
-                    </button>
-                </form>
-            </footer>
+            {/* Comment Input Footer */}
+            {userRole === 'admin' && (
+                <footer className="w-full max-w-md mx-auto p-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 fixed bottom-16 left-1/2 -translate-x-1/2">
+                    <form onSubmit={handleSubmitComment} className="flex items-center space-x-2">
+                        <input 
+                            type="text"
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Añadir un comentario..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        <button type="submit" className="bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600" aria-label="Enviar comentario">
+                            <SendIcon className="w-5 h-5"/>
+                        </button>
+                    </form>
+                </footer>
+            )}
         </div>
     );
 };
@@ -530,9 +560,12 @@ const IncidentsScreen: React.FC<{
 const CreateIncidentModal: React.FC<{
   onClose: () => void;
   onCreate: (incident: Omit<Incident, 'id' | 'status' | 'reportedBy'>) => void;
-}> = ({ onClose, onCreate }) => {
+  taskContext?: Task;
+}> = ({ onClose, onCreate, taskContext }) => {
     const [category, setCategory] = useState('Mantenimiento');
-    const [description, setDescription] = useState('');
+    const [description, setDescription] = useState(
+      taskContext ? `Problema con la tarea: "${taskContext.title}".\n\n` : ''
+    );
     const [photo, setPhoto] = useState<string | undefined>(undefined);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
@@ -628,37 +661,64 @@ const CreateStaffModal: React.FC<{ onClose: () => void, onCreate: (staffMember: 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<StaffMember['role']>('Limpieza');
+  const [shift, setShift] = useState<StaffMember['shift']>('Matutino');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name && phone && password) {
-      onCreate({ name, phone, password });
+      onCreate({ name, phone, password, email, role, shift, status: 'Activo' });
     }
   };
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-11/12 max-w-sm">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm max-h-full overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-800 dark:text-white">Agregar Personal</h2>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">
                 <XIcon className="w-6 h-6"/>
             </button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
             <label htmlFor="staff-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre Completo</label>
             <input type="text" id="staff-name" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
           </div>
-          <div className="mb-4">
+          <div>
             <label htmlFor="staff-phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Teléfono (WhatsApp)</label>
             <input type="tel" id="staff-phone" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
           </div>
-          <div className="mb-6">
+          <div>
+            <label htmlFor="staff-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email (Opcional)</label>
+            <input type="email" id="staff-email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="staff-role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rol</label>
+              <select id="staff-role" value={role} onChange={(e) => setRole(e.target.value as StaffMember['role'])} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                  <option>Limpieza</option>
+                  <option>Mantenimiento</option>
+                  <option>Jardinería</option>
+                  <option>Electricista</option>
+                  <option>General</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="staff-shift" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Turno</label>
+              <select id="staff-shift" value={shift} onChange={(e) => setShift(e.target.value as StaffMember['shift'])} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                  <option>Matutino</option>
+                  <option>Vespertino</option>
+                  <option>Nocturno</option>
+              </select>
+            </div>
+          </div>
+          <div>
             <label htmlFor="staff-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña</label>
             <input type="password" id="staff-password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
           </div>
-          <button type="submit" className="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">Agregar Miembro</button>
+          <button type="submit" className="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors mt-2">Agregar Miembro</button>
         </form>
       </div>
     </div>
@@ -669,13 +729,18 @@ const EditStaffModal: React.FC<{
     staffMember: StaffMember;
     onClose: () => void; 
     onSave: (staffId: number, updatedDetails: Partial<Omit<StaffMember, 'id'>>) => void; 
-}> = ({ staffMember, onClose, onSave }) => {
+    onDelete: () => void;
+}> = ({ staffMember, onClose, onSave, onDelete }) => {
   const [phone, setPhone] = useState(staffMember.phone);
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(staffMember.email || '');
+  const [role, setRole] = useState<StaffMember['role']>(staffMember.role);
+  const [shift, setShift] = useState<StaffMember['shift']>(staffMember.shift);
+  const [status, setStatus] = useState<StaffMember['status']>(staffMember.status);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const updates: Partial<Omit<StaffMember, 'id'>> = { phone };
+    const updates: Partial<Omit<StaffMember, 'id'>> = { phone, email, role, shift, status };
     if (password.trim() !== '') {
       updates.password = password;
     }
@@ -683,28 +748,70 @@ const EditStaffModal: React.FC<{
   };
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-11/12 max-w-sm">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm max-h-full overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-800 dark:text-white">Editar Personal</h2>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">
                 <XIcon className="w-6 h-6"/>
             </button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
             <label htmlFor="staff-name-edit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
             <input type="text" id="staff-name-edit" value={staffMember.name} className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-400" disabled />
           </div>
-          <div className="mb-4">
+          <div>
             <label htmlFor="staff-phone-edit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Teléfono (WhatsApp)</label>
             <input type="tel" id="staff-phone-edit" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
           </div>
-          <div className="mb-6">
+          <div>
+            <label htmlFor="staff-email-edit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email (Opcional)</label>
+            <input type="email" id="staff-email-edit" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+             <div>
+              <label htmlFor="staff-role-edit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rol</label>
+              <select id="staff-role-edit" value={role} onChange={(e) => setRole(e.target.value as StaffMember['role'])} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                  <option>Limpieza</option>
+                  <option>Mantenimiento</option>
+                  <option>Jardinería</option>
+                  <option>Electricista</option>
+                  <option>General</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="staff-shift-edit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Turno</label>
+              <select id="staff-shift-edit" value={shift} onChange={(e) => setShift(e.target.value as StaffMember['shift'])} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                  <option>Matutino</option>
+                  <option>Vespertino</option>
+                  <option>Nocturno</option>
+              </select>
+            </div>
+          </div>
+           <div>
+              <label htmlFor="staff-status-edit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
+              <select id="staff-status-edit" value={status} onChange={(e) => setStatus(e.target.value as StaffMember['status'])} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                  <option>Activo</option>
+                  <option>De vacaciones</option>
+                  <option>Inactivo</option>
+              </select>
+          </div>
+          <div>
             <label htmlFor="staff-password-edit" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nueva Contraseña</label>
             <input type="password" id="staff-password-edit" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Dejar en blanco para no cambiar" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
           </div>
-          <button type="submit" className="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">Guardar Cambios</button>
+          <div className="space-y-2 mt-4">
+            <button type="submit" className="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">Guardar Cambios</button>
+            <button 
+                type="button" 
+                onClick={onDelete}
+                className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+            >
+                <TrashIcon className="w-4 h-4" />
+                <span>Eliminar Personal</span>
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -712,58 +819,314 @@ const EditStaffModal: React.FC<{
 };
 
 
-const StaffScreen: React.FC<{ staff: StaffMember[], openModal: () => void, onEdit: (member: StaffMember) => void }> = ({ staff, openModal, onEdit }) => (
-    <div className="p-4 space-y-3 relative h-full pb-20">
-        {staff.map(member => (
-            <button 
-                key={member.id} 
-                onClick={() => onEdit(member)}
-                className="w-full bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center space-x-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold text-gray-600 dark:text-gray-300">{member.name.charAt(0)}</div>
-                <div className="flex-grow">
-                    <p className="font-semibold text-gray-800 dark:text-white">{member.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{member.phone}</p>
-                </div>
-            </button>
-        ))}
-        <button onClick={openModal} className="absolute bottom-6 right-6 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-transform transform hover:scale-110">
-            <UserPlusIcon className="w-8 h-8"/>
-        </button>
-    </div>
-);
+const StaffScreen: React.FC<{ staff: StaffMember[], openModal: () => void, onEdit: (member: StaffMember) => void }> = ({ staff, openModal, onEdit }) => {
+    const getStatusIndicatorColor = (status: StaffMember['status']) => {
+        switch (status) {
+            case 'Activo': return 'bg-green-500 ring-white dark:ring-gray-800';
+            case 'De vacaciones': return 'bg-yellow-500 ring-white dark:ring-gray-800';
+            case 'Inactivo': return 'bg-gray-500 ring-white dark:ring-gray-800';
+            default: return 'bg-gray-500 ring-white dark:ring-gray-800';
+        }
+    };
 
-const AdminChatScreen: React.FC<{ staff: StaffMember[] }> = ({ staff }) => (
-    <div className="p-4 space-y-3">
-        {staff.map(member => (
-             <a key={member.id} href={`https://wa.me/${member.phone}`} target="_blank" rel="noopener noreferrer" className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center space-x-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold text-gray-600 dark:text-gray-300">{member.name.charAt(0)}</div>
-                <div className="flex-grow">
-                    <p className="font-semibold text-gray-800 dark:text-white">{member.name}</p>
+    return (
+        <div className="p-4 space-y-3 relative h-full pb-20">
+            {staff.map(member => (
+                <button 
+                    key={member.id} 
+                    onClick={() => onEdit(member)}
+                    className="w-full bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center space-x-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <div className="relative flex-shrink-0">
+                        <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold text-gray-600 dark:text-gray-300">{member.name.charAt(0)}</div>
+                        <span className={`absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ${getStatusIndicatorColor(member.status)}`} title={`Estado: ${member.status}`} />
+                    </div>
+                    <div className="flex-grow">
+                        <p className="font-semibold text-gray-800 dark:text-white">{member.name}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{member.role} &middot; {member.shift}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{member.phone}</p>
+                    </div>
+                </button>
+            ))}
+            <button onClick={openModal} className="absolute bottom-6 right-6 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-transform transform hover:scale-110">
+                <UserPlusIcon className="w-8 h-8"/>
+            </button>
+        </div>
+    );
+};
+
+const AdminSuppliesScreen: React.FC<{
+  supplyRequests: SupplyRequest[],
+  onUpdateStatus: (requestId: number, newStatus: SupplyRequest['status']) => void,
+}> = ({ supplyRequests, onUpdateStatus }) => {
+    const statusOrder: Record<SupplyRequest['status'], number> = {
+        'Pendiente': 1,
+        'Aprobado': 2,
+        'Entregado': 3,
+    };
+    const sortedRequests = supplyRequests.slice().sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+
+    const getStatusColor = (status: SupplyRequest['status']) => {
+        switch (status) {
+            case 'Pendiente': return 'text-yellow-600 dark:text-yellow-400';
+            case 'Aprobado': return 'text-blue-600 dark:text-blue-400';
+            case 'Entregado': return 'text-green-600 dark:text-green-400';
+        }
+    };
+    
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    };
+
+    return (
+        <div className="p-4 space-y-3">
+            {sortedRequests.length === 0 ? (
+                <div className="text-center py-10">
+                    <p className="text-gray-500 dark:text-gray-400">No hay solicitudes de suministros.</p>
                 </div>
-                <WhatsAppIcon className="w-7 h-7 text-green-500" />
-            </a>
-        ))}
-    </div>
-);
+            ) : (
+                sortedRequests.map(req => (
+                    <div key={req.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                        <div className="flex justify-between items-start">
+                            <div className="flex-1 pr-4">
+                                <p className="font-bold text-gray-800 dark:text-white">{req.itemName}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Solicitado por: <span className="font-medium">{req.requestedBy}</span>
+                                </p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{formatDate(req.timestamp)}</p>
+                            </div>
+                            <span className={`text-sm font-semibold ${getStatusColor(req.status)}`}>{req.status}</span>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex space-x-2">
+                            {req.status === 'Pendiente' && (
+                                <button
+                                    onClick={() => onUpdateStatus(req.id, 'Aprobado')}
+                                    className="flex-1 text-sm bg-blue-100 text-blue-800 font-semibold py-2 px-4 rounded-lg hover:bg-blue-200 transition-colors dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
+                                >
+                                    Aprobar
+                                </button>
+                            )}
+                            {req.status === 'Aprobado' && (
+                                <button
+                                    onClick={() => onUpdateStatus(req.id, 'Entregado')}
+                                    className="flex-1 text-sm bg-green-100 text-green-800 font-semibold py-2 px-4 rounded-lg hover:bg-green-200 transition-colors dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800"
+                                >
+                                    Marcar como Entregado
+                                </button>
+                            )}
+                             {req.status === 'Entregado' && (
+                                <p className="flex-1 text-sm text-center text-green-600 dark:text-green-400 font-medium py-2">
+                                    Solicitud Completada
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                ))
+            )}
+        </div>
+    );
+};
 
 
 // --- Worker Screens ---
+const CompleteTaskModal: React.FC<{
+  task: Task;
+  onClose: () => void;
+  onComplete: (taskId: number, photo?: string, comment?: string) => void;
+  loggedInUser: StaffMember;
+}> = ({ task, onClose, onComplete, loggedInUser }) => {
+  const [photo, setPhoto] = useState<string | undefined>(undefined);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [comment, setComment] = useState('');
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setPhotoPreview(URL.createObjectURL(file));
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = () => {
+    onComplete(task.id, photo, comment.trim());
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-white">Completar Tarea</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">
+            <XIcon className="w-6 h-6" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Añadir foto de evidencia (Opcional)</label>
+            <input type="file" accept="image/*" id="evidence-photo-upload" className="hidden" onChange={handlePhotoChange} />
+            <label htmlFor="evidence-photo-upload" className="cursor-pointer w-full h-32 flex items-center justify-center border-2 border-gray-300 border-dashed rounded-md dark:border-gray-600">
+              {photoPreview ? (
+                <img src={photoPreview} alt="Vista previa" className="h-full w-full object-cover rounded-md" />
+              ) : (
+                <div className="text-center text-gray-400">
+                  <CameraIcon className="w-10 h-10 mx-auto" />
+                  <p className="text-sm mt-1">Tocar para subir</p>
+                </div>
+              )}
+            </label>
+          </div>
+          <div>
+            <label htmlFor="final-comment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Comentario final (Opcional)</label>
+            <textarea
+              id="final-comment"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              rows={2}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              placeholder="Ej: Se utilizó el último producto..."
+            />
+          </div>
+          <button onClick={handleSubmit} className="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">
+            Confirmar Finalización
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+const WorkerTaskDetailScreen: React.FC<{
+  task: Task;
+  onBack: () => void;
+  onUpdateTask: (taskId: number, updates: Partial<Omit<Task, 'id'>>) => void;
+  onAddComment: (taskId: number, commentText: string, author: string) => void;
+  onReportProblem: (taskContext: Task) => void;
+  loggedInUser: StaffMember;
+}> = ({ task, onBack, onUpdateTask, onAddComment, onReportProblem, loggedInUser }) => {
+    const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+    const [newComment, setNewComment] = useState('');
+
+    const handleStartTask = () => {
+        onUpdateTask(task.id, { status: 'En Progreso' });
+    };
+
+    const handleCompleteTask = (taskId: number, photo?: string, comment?: string) => {
+        const updates: Partial<Omit<Task, 'id'>> = { status: 'Completada' };
+        if (photo) {
+            updates.photo = photo;
+        }
+        onUpdateTask(taskId, updates);
+        if (comment) {
+            onAddComment(taskId, comment, loggedInUser.name);
+        }
+    };
+
+    const handleSubmitComment = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newComment.trim() && loggedInUser) {
+            onAddComment(task.id, newComment.trim(), loggedInUser.name);
+            setNewComment('');
+        }
+    };
+
+    return (
+        <>
+            <TaskDetailScreen
+                task={task}
+                onBack={onBack}
+                onAddComment={onAddComment}
+                userRole="worker"
+                staff={[]} // Not used in worker view
+                onUpdateTask={onUpdateTask}
+                loggedInUser={loggedInUser}
+            />
+            {/* Action Footer */}
+             {task.status !== 'Completada' && (
+                <footer className="w-full max-w-md mx-auto bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 fixed bottom-16 left-1/2 -translate-x-1/2">
+                    <div className="p-2 flex items-center space-x-2">
+                        {task.status === 'Asignada' && (
+                            <button onClick={handleStartTask} className="flex-1 flex items-center justify-center space-x-2 bg-yellow-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-600 transition-colors">
+                                <PlayIcon className="w-5 h-5" />
+                                <span>Empezar Tarea</span>
+                            </button>
+                        )}
+                        {task.status === 'En Progreso' && (
+                            <button onClick={() => setIsCompleteModalOpen(true)} className="flex-1 bg-green-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 transition-colors">
+                                Completar Tarea
+                            </button>
+                        )}
+                        <button onClick={() => onReportProblem(task)} className="p-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800" aria-label="Reportar Problema">
+                            <AlertTriangle className="w-6 h-6" />
+                        </button>
+                    </div>
+                    <form onSubmit={handleSubmitComment} className="flex items-center space-x-2 p-2 border-t border-gray-200 dark:border-gray-700">
+                        <input 
+                            type="text"
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Añadir un comentario..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                        <button type="submit" className="bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600" aria-label="Enviar comentario">
+                            <SendIcon className="w-5 h-5"/>
+                        </button>
+                    </form>
+                </footer>
+            )}
+            {task.status === 'Completada' && (
+                 <footer className="w-full max-w-md mx-auto bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 fixed bottom-16 left-1/2 -translate-x-1/2 p-2">
+                     <div className="text-center text-green-600 dark:text-green-400 font-bold py-3 px-4 rounded-lg bg-green-100 dark:bg-green-900">
+                        ¡Tarea Completada!
+                    </div>
+                 </footer>
+            )}
+
+            {isCompleteModalOpen && (
+                <CompleteTaskModal
+                    task={task}
+                    onClose={() => setIsCompleteModalOpen(false)}
+                    onComplete={handleCompleteTask}
+                    loggedInUser={loggedInUser}
+                />
+            )}
+        </>
+    );
+};
+
+
 const WorkerTasksScreen: React.FC<{ 
-  loggedInUser: StaffMember | null,
+  loggedInUser: StaffMember,
   tasks: Task[],
-  onUpdateTaskStatus: (taskId: number, newStatus: Task['status']) => void;
-}> = ({ loggedInUser, tasks: allTasks, onUpdateTaskStatus }) => {
-  const [viewingImage, setViewingImage] = useState<string | null>(null);
+  onViewTask: (task: Task) => void
+}> = ({ loggedInUser, tasks: allTasks, onViewTask }) => {
   if (!loggedInUser) return null;
 
   const myTasks = allTasks.filter(t => t.assignee === loggedInUser.name);
 
-  const toggleTask = (task: Task) => {
-    const newStatus = task.status === 'Completada' ? 'Asignada' : 'Completada';
-    onUpdateTaskStatus(task.id, newStatus);
+  const statusOrder: Record<Task['status'], number> = {
+    'En Progreso': 1,
+    'Asignada': 2,
+    'Completada': 3,
   };
+
+  const sortedTasks = myTasks.slice().sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
   
+    const getStatusColor = (status: Task['status']) => {
+        switch (status) {
+            case 'Completada': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+            case 'En Progreso': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+            case 'Asignada': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+        }
+    };
+    
     const getPriorityColor = (priority: Task['priority']) => {
         switch (priority) {
             case 'Alta': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
@@ -775,66 +1138,48 @@ const WorkerTasksScreen: React.FC<{
     const formatDate = (dateString: string | null) => {
         if (!dateString) return 'Sin fecha';
         const date = new Date(dateString);
-        return new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
+        return new Intl.DateTimeFormat('es-MX', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);
     };
 
-    const isOverdue = (dateString: string | null) => {
-        if (!dateString) return false;
+    const isOverdue = (dateString: string | null, status: Task['status']) => {
+        if (!dateString || status === 'Completada') return false;
         return new Date(dateString) < new Date();
     };
 
 
   return (
     <div className="p-4 space-y-3">
-        {myTasks.length === 0 ? (
+        {sortedTasks.length === 0 ? (
              <div className="text-center py-10">
                 <p className="text-gray-500 dark:text-gray-400">No tienes tareas asignadas.</p>
             </div>
         ) : (
-            myTasks.map(task => (
-                 <div key={task.id} className={`bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-3 flex items-start space-x-3 transition-opacity ${task.status === 'Completada' ? 'opacity-60' : ''}`}>
-                    <input 
-                        type="checkbox" 
-                        id={`task-${task.id}`}
-                        checked={task.status === 'Completada'}
-                        onChange={() => toggleTask(task)}
-                        className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
-                    />
-                    <div className="flex-1">
-                        <label htmlFor={`task-${task.id}`} className={`font-semibold text-gray-800 dark:text-white ${task.status === 'Completada' ? 'line-through text-gray-400 dark:text-gray-500' : ''}`}>
-                            {task.title}
-                        </label>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 whitespace-pre-wrap">
-                            {task.description}
-                        </p>
-
-                        {task.photo && (
-                            <button onClick={() => setViewingImage(task.photo!)} className="mt-2 rounded-md overflow-hidden">
-                                <img src={task.photo} alt="Evidencia de tarea" className="h-20 w-20 object-cover" />
-                            </button>
-                        )}
-
-                        <div className="flex items-center space-x-4 mt-3 text-sm">
-                             <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+            sortedTasks.map(task => (
+                 <button 
+                    key={task.id} 
+                    onClick={() => onViewTask(task)}
+                    className={`w-full bg-white dark:bg-gray-800 p-4 rounded-lg shadow text-left transition-opacity hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 ${task.status === 'Completada' ? 'opacity-60' : ''}`}
+                 >
+                    <div className="flex justify-between items-start">
+                        <div className="flex-1 pr-2 min-w-0">
+                           <p className={`font-semibold text-gray-800 dark:text-white truncate ${task.status === 'Completada' ? 'line-through' : ''}`}>{task.title}</p>
+                           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">{task.description}</p>
+                        </div>
+                        <div className="flex flex-col items-end space-y-2 flex-shrink-0">
+                            <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
                                 {task.priority}
                             </span>
-                            <div className={`flex items-center text-xs ${isOverdue(task.dueDate) && task.status !== 'Completada' ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
-                               <ClockIcon className="w-3 h-3 mr-1"/>
-                               <span>Vence: {formatDate(task.dueDate)}</span>
-                            </div>
+                             <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(task.status)}`}>
+                                {task.status}
+                            </span>
                         </div>
                     </div>
-                </div>
-            ))
-        )}
-
-        {viewingImage && (
-            <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50" onClick={() => setViewingImage(null)}>
-                <img src={viewingImage} alt="Incidente en tamaño completo" className="max-w-full max-h-full" />
-                <button className="absolute top-4 right-4 text-white text-2xl">
-                    <XIcon className="w-8 h-8"/>
+                     <div className={`flex items-center text-xs mt-2 ${isOverdue(task.dueDate, task.status) ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                       <ClockIcon className="w-3 h-3 mr-1"/>
+                       <span>Vence: {formatDate(task.dueDate)}</span>
+                    </div>
                 </button>
-            </div>
+            ))
         )}
     </div>
   );
@@ -843,9 +1188,12 @@ const WorkerTasksScreen: React.FC<{
 const ReportIncidentScreen: React.FC<{
   onAddIncident: (incident: Omit<Incident, 'id' | 'status'>) => void;
   loggedInUser: StaffMember | null;
-}> = ({ onAddIncident, loggedInUser }) => {
+  taskContext?: Task;
+}> = ({ onAddIncident, loggedInUser, taskContext }) => {
     const [category, setCategory] = useState('Mantenimiento');
-    const [description, setDescription] = useState('');
+    const [description, setDescription] = useState(
+      taskContext ? `Problema con la tarea: "${taskContext.title}".\n\n` : ''
+    );
     const [photo, setPhoto] = useState<string | undefined>(undefined);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [submitMessage, setSubmitMessage] = useState('');
@@ -866,7 +1214,7 @@ const ReportIncidentScreen: React.FC<{
 
     const resetForm = () => {
         setCategory('Mantenimiento');
-        setDescription('');
+        setDescription(taskContext ? `Problema con la tarea: "${taskContext.title}".\n\n` : '');
         setPhoto(undefined);
         setPhotoPreview(null);
         // Clear file input
@@ -945,6 +1293,82 @@ const ReportIncidentScreen: React.FC<{
 };
 
 
+const RequestSuppliesScreen: React.FC<{
+  loggedInUser: StaffMember;
+  supplyRequests: SupplyRequest[];
+  onAddRequest: (itemName: string, requestedBy: string) => void;
+}> = ({ loggedInUser, supplyRequests, onAddRequest }) => {
+    const [newItem, setNewItem] = useState('');
+    const [message, setMessage] = useState('');
+    
+    const myRequests = supplyRequests.filter(req => req.requestedBy === loggedInUser.name);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newItem.trim()) return;
+        onAddRequest(newItem, loggedInUser.name);
+        setNewItem('');
+        setMessage('¡Solicitud enviada!');
+        setTimeout(() => setMessage(''), 3000);
+    };
+    
+    const getStatusColor = (status: SupplyRequest['status']) => {
+        switch (status) {
+            case 'Pendiente': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+            case 'Aprobado': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+            case 'Entregado': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        }
+    };
+    
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('es-MX', { month: 'short', day: 'numeric' }).format(date);
+    };
+
+    return (
+        <div className="p-4 space-y-6">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">Solicitar un Suministro</h2>
+                <form onSubmit={handleSubmit} className="flex space-x-2">
+                    <input
+                        type="text"
+                        value={newItem}
+                        onChange={(e) => setNewItem(e.target.value)}
+                        placeholder="Ej: Detergente para pisos"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        required
+                    />
+                    <button type="submit" className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+                        Pedir
+                    </button>
+                </form>
+                {message && <p className="text-center text-green-500 mt-2 text-sm">{message}</p>}
+            </div>
+            <div>
+                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">Mis Solicitudes</h3>
+                <div className="space-y-2">
+                    {myRequests.length > 0 ? (
+                        myRequests.map(req => (
+                            <div key={req.id} className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm flex justify-between items-center">
+                                <div>
+                                    <p className="font-medium text-gray-800 dark:text-white">{req.itemName}</p>
+                                    <p className="text-xs text-gray-400 dark:text-gray-500">{formatDate(req.timestamp)}</p>
+                                </div>
+                                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(req.status)}`}>
+                                    {req.status}
+                                </span>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-center text-gray-500 dark:text-gray-400 pt-4">No has solicitado suministros.</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 const WorkerChatScreen: React.FC<{ supervisor: { name: string, phone: string } }> = ({ supervisor }) => (
     <div className="p-8 flex flex-col items-center justify-center h-full">
          <a href={`https://wa.me/${supervisor.phone}`} target="_blank" rel="noopener noreferrer" className="w-full bg-green-500 text-white font-bold py-4 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors flex items-center justify-center space-x-3">
@@ -954,17 +1378,28 @@ const WorkerChatScreen: React.FC<{ supervisor: { name: string, phone: string } }
     </div>
 );
 
-const ProfileScreen: React.FC<{ loggedInUser: StaffMember | null }> = ({ loggedInUser }) => {
-    if (!loggedInUser) return null;
-
-    return (
-        <div className="p-4 text-center">
-            <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center font-bold text-gray-600 dark:text-gray-300 text-4xl mx-auto">{loggedInUser.name.charAt(0)}</div>
-            <h2 className="text-2xl font-bold mt-4 text-gray-800 dark:text-white">{loggedInUser.name}</h2>
-            <p className="text-gray-500 dark:text-gray-400">Personal de Limpieza</p>
+const ConfirmDeleteModal: React.FC<{
+    staffMember: StaffMember;
+    onConfirm: () => void;
+    onCancel: () => void;
+}> = ({ staffMember, onConfirm, onCancel }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-white">Confirmar Eliminación</h2>
+            <p className="text-gray-600 dark:text-gray-300 my-4">
+                ¿Estás seguro de que quieres eliminar a <span className="font-semibold">{staffMember.name}</span>? Esta acción no se puede deshacer.
+            </p>
+            <div className="flex justify-center space-x-4">
+                <button onClick={onCancel} className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">
+                    Cancelar
+                </button>
+                <button onClick={onConfirm} className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700">
+                    Eliminar
+                </button>
+            </div>
         </div>
-    );
-};
+    </div>
+);
 
 
 // --- Main Content Renderer ---
@@ -974,15 +1409,20 @@ interface ScreenContentProps {
   staff: StaffMember[];
   onAddStaff: (staffMember: Omit<StaffMember, 'id'>) => void;
   onUpdateStaff: (staffId: number, updatedDetails: Partial<Omit<StaffMember, 'id'>>) => void;
+  onDeleteStaff: (staffId: number) => void;
   loggedInUser: StaffMember | null;
   tasks: Task[];
   onAddTask: (task: Omit<Task, 'id' | 'status' | 'comments'>) => void;
+  onUpdateTask: (taskId: number, updates: Partial<Omit<Task, 'id'>>) => void;
   onUpdateTaskStatus: (taskId: number, newStatus: Task['status']) => void;
   onAddCommentToTask: (taskId: number, commentText: string, author: string) => void;
   incidents: Incident[];
   onAssignIncident: (incident: Incident, assigneeName: string) => void;
   onAddIncident: (incident: Omit<Incident, 'id' | 'status'>) => void;
   onTabChange: (tab: TabType, title: string) => void;
+  supplyRequests: SupplyRequest[];
+  onAddSupplyRequest: (itemName: string, requestedBy: string) => void;
+  onUpdateSupplyRequestStatus: (requestId: number, newStatus: SupplyRequest['status']) => void;
 }
 
 const ScreenContent: React.FC<ScreenContentProps> = ({ 
@@ -991,35 +1431,55 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
     staff, 
     onAddStaff, 
     onUpdateStaff,
+    onDeleteStaff,
     loggedInUser,
     tasks,
     onAddTask,
+    onUpdateTask,
     onUpdateTaskStatus,
     onAddCommentToTask,
     incidents,
     onAssignIncident,
     onAddIncident,
     onTabChange,
+    supplyRequests,
+    onAddSupplyRequest,
+    onUpdateSupplyRequestStatus,
 }) => {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [assigningIncident, setAssigningIncident] = useState<Incident | null>(null);
   const [editingStaffMember, setEditingStaffMember] = useState<StaffMember | null>(null);
+  const [deletingStaffMember, setDeletingStaffMember] = useState<StaffMember | null>(null);
   const [taskFilter, setTaskFilter] = useState<'all' | 'pending'>('all');
   const [incidentFilter, setIncidentFilter] = useState<'all' | 'new'>('all');
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const [reportingTaskProblem, setReportingTaskProblem] = useState<Task | null>(null);
 
   useEffect(() => {
+    // Reset detail views when changing tabs
+    setViewingTask(null);
     if (activeTab !== 'tasks') {
         setTaskFilter('all');
     }
     if (activeTab !== 'incidents') {
         setIncidentFilter('all');
     }
-    // Go back to list view when changing tabs
-    setViewingTask(null);
   }, [activeTab]);
+
+   // Update the viewingTask state if the underlying task data changes
+  useEffect(() => {
+    if (viewingTask) {
+        const updatedTask = tasks.find(t => t.id === viewingTask.id);
+        if (updatedTask) {
+            setViewingTask(updatedTask);
+        } else {
+            // The task was deleted or is no longer available, so go back to the list
+            setViewingTask(null);
+        }
+    }
+  }, [tasks, viewingTask]);
 
   const handleMetricClick = (metric: 'pendingTasks' | 'newIncidents' | 'staff') => {
     if (metric === 'pendingTasks') {
@@ -1045,15 +1505,17 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
   }
   
   const handleCreateIncident = (newIncidentData: Omit<Incident, 'id' | 'status' | 'reportedBy'>) => {
+      const author = userRole === 'admin' ? 'Supervisor' : loggedInUser?.name || 'Desconocido';
       onAddIncident({
           ...newIncidentData,
-          reportedBy: 'Supervisor',
+          reportedBy: author,
       });
       setIsIncidentModalOpen(false);
+      setReportingTaskProblem(null);
   };
   
-   const handleAddComment = (taskId: number, commentText: string) => {
-    onAddCommentToTask(taskId, commentText, 'Supervisor');
+   const handleAddComment = (taskId: number, commentText: string, author: string) => {
+    onAddCommentToTask(taskId, commentText, author);
   }
 
   const handleAssignIncidentSubmit = (assigneeName: string) => {
@@ -1063,10 +1525,20 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
     }
   };
 
+  const handleDeleteConfirm = () => {
+    if (deletingStaffMember) {
+      onDeleteStaff(deletingStaffMember.id);
+      setDeletingStaffMember(null);
+      setEditingStaffMember(null); // Also close the edit modal
+    }
+  };
+
   const renderContent = () => {
     if (userRole === 'admin') {
       const pendingTasksCount = tasks.filter(t => t.status !== 'Completada').length;
       const newIncidentsCount = incidents.filter(i => i.status === 'Nuevo').length;
+      
+      const activeStaff = staff.filter(s => s.status === 'Activo');
 
       const filteredTasks = taskFilter === 'pending'
         ? tasks.filter(t => t.status !== 'Completada')
@@ -1084,14 +1556,18 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
                     <TaskDetailScreen 
                         task={viewingTask}
                         onBack={() => setViewingTask(null)}
-                        onAddComment={handleAddComment}
+                        onAddComment={onAddCommentToTask}
+                        userRole={userRole}
+                        staff={activeStaff}
+                        onUpdateTask={onUpdateTask}
+                        loggedInUser={loggedInUser}
                     />
                 );
             }
             return (
                 <>
                     <TasksScreen tasks={filteredTasks} openModal={() => setIsTaskModalOpen(true)} onViewTask={setViewingTask} />
-                    {isTaskModalOpen && <CreateTaskModal workers={staff} onClose={() => setIsTaskModalOpen(false)} onCreate={handleCreateTask}/>}
+                    {isTaskModalOpen && <CreateTaskModal workers={activeStaff} onClose={() => setIsTaskModalOpen(false)} onCreate={handleCreateTask}/>}
                 </>
             );
         case 'incidents': return (
@@ -1100,7 +1576,7 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
                 {assigningIncident && (
                     <AssignTaskFromIncidentModal 
                         incident={assigningIncident}
-                        workers={staff}
+                        workers={activeStaff}
                         onClose={() => setAssigningIncident(null)}
                         onAssign={handleAssignIncidentSubmit}
                     />
@@ -1125,21 +1601,57 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
                           onUpdateStaff(staffId, updatedDetails);
                           setEditingStaffMember(null);
                       }}
+                      onDelete={() => setDeletingStaffMember(editingStaffMember)}
                   />
+              )}
+              {deletingStaffMember && (
+                <ConfirmDeleteModal 
+                    staffMember={deletingStaffMember}
+                    onConfirm={handleDeleteConfirm}
+                    onCancel={() => setDeletingStaffMember(null)}
+                />
               )}
             </>
         );
-        case 'chat': return <AdminChatScreen staff={staff} />;
+        case 'supplies': return <AdminSuppliesScreen supplyRequests={supplyRequests} onUpdateStatus={onUpdateSupplyRequestStatus} />;
         default: return <div>Admin Screen Not Found</div>;
       }
     } else { // worker
-      switch (activeTab) {
-        case 'my-tasks': return <WorkerTasksScreen loggedInUser={loggedInUser} tasks={tasks} onUpdateTaskStatus={onUpdateTaskStatus} />;
-        case 'report': return <ReportIncidentScreen onAddIncident={onAddIncident} loggedInUser={loggedInUser} />;
-        case 'chat': return <WorkerChatScreen supervisor={supervisor} />;
-        case 'profile': return <ProfileScreen loggedInUser={loggedInUser} />;
-        default: return <div>Worker Screen Not Found</div>;
-      }
+        if (!loggedInUser) return <div>Cargando...</div>;
+
+        switch (activeTab) {
+            case 'my-tasks': 
+                return (
+                    <>
+                        {viewingTask ? (
+                            <WorkerTaskDetailScreen
+                                task={viewingTask}
+                                onBack={() => setViewingTask(null)}
+                                onUpdateTask={onUpdateTask}
+                                onAddComment={onAddCommentToTask}
+                                onReportProblem={setReportingTaskProblem}
+                                loggedInUser={loggedInUser}
+                            />
+                        ) : (
+                            <WorkerTasksScreen 
+                                loggedInUser={loggedInUser} 
+                                tasks={tasks} 
+                                onViewTask={setViewingTask} 
+                            />
+                        )}
+                        {reportingTaskProblem && (
+                          <CreateIncidentModal 
+                            onClose={() => setReportingTaskProblem(null)}
+                            onCreate={handleCreateIncident}
+                            taskContext={reportingTaskProblem}
+                          />
+                        )}
+                    </>
+                );
+            case 'report': return <ReportIncidentScreen onAddIncident={onAddIncident} loggedInUser={loggedInUser} />;
+            case 'supplies': return <RequestSuppliesScreen loggedInUser={loggedInUser} supplyRequests={supplyRequests} onAddRequest={onAddSupplyRequest} />;
+            default: return <div>Worker Screen Not Found</div>;
+        }
     }
   };
 

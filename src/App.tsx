@@ -9,6 +9,10 @@ export interface StaffMember {
   name: string
   phone: string
   password?: string
+  email?: string
+  role: 'Limpieza' | 'Mantenimiento' | 'Jardinería' | 'Electricista' | 'General'
+  shift: 'Matutino' | 'Vespertino' | 'Nocturno'
+  status: 'Activo' | 'De vacaciones' | 'Inactivo'
 }
 
 export interface Comment {
@@ -39,10 +43,19 @@ export interface Incident {
   photo?: string // Base64 encoded image
 }
 
+export interface SupplyRequest {
+  id: number;
+  itemName: string;
+  requestedBy: string;
+  status: 'Pendiente' | 'Aprobado' | 'Entregado';
+  timestamp: string;
+}
+
+
 // --- Mock Data ---
 const initialStaffMembers: StaffMember[] = [
-  { id: 1, name: 'Ana Pérez', phone: '5211234567890', password: 'password123' },
-  { id: 2, name: 'Luis García', phone: '5210987654321', password: 'password456' },
+  { id: 1, name: 'Ana Pérez', phone: '5211234567890', password: 'password123', email: 'ana.perez@example.com', role: 'Limpieza', shift: 'Matutino', status: 'Activo' },
+  { id: 2, name: 'Luis García', phone: '5210987654321', password: 'password456', email: 'luis.garcia@example.com', role: 'Mantenimiento', shift: 'Vespertino', status: 'Activo' },
 ]
 
 const initialTasks: Task[] = [
@@ -57,12 +70,21 @@ const initialIncidents: Incident[] = [
   { id: 2, category: 'Suministros', description: 'Falta papel higiénico en el 3er piso', reportedBy: 'Luis García', status: 'Resuelto' },
 ]
 
+const initialSupplyRequests: SupplyRequest[] = [
+  { id: 1, itemName: 'Detergente para pisos', requestedBy: 'Ana Pérez', status: 'Pendiente', timestamp: new Date(Date.now() - 86400000).toISOString() },
+  { id: 2, itemName: 'Bolsas de basura grandes', requestedBy: 'Luis García', status: 'Aprobado', timestamp: new Date(Date.now() - 172800000).toISOString() },
+  { id: 3, itemName: 'Jabón de manos (x5 litros)', requestedBy: 'Ana Pérez', status: 'Entregado', timestamp: new Date(Date.now() - 372800000).toISOString() },
+];
+
+
 const App: React.FC = () => {
   const [userRole, setUserRole] = useState<UserRole | null>(null)
   const [loggedInUser, setLoggedInUser] = useState<StaffMember | null>(null)
   const [staff, setStaff] = useState<StaffMember[]>(initialStaffMembers)
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
   const [incidents, setIncidents] = useState<Incident[]>(initialIncidents)
+  const [supplyRequests, setSupplyRequests] = useState<SupplyRequest[]>(initialSupplyRequests);
+
 
   const handleLogin = (role: UserRole, user?: StaffMember) => {
     setUserRole(role)
@@ -91,6 +113,11 @@ const App: React.FC = () => {
       )
     )
   }
+  
+  const handleDeleteStaff = (staffId: number) => {
+    setStaff(prevStaff => prevStaff.filter(member => member.id !== staffId));
+  }
+
 
   const handleAddTask = (newTask: Omit<Task, 'id' | 'status' | 'comments'>) => {
     const createdTask: Task = {
@@ -102,10 +129,18 @@ const App: React.FC = () => {
     setTasks(prevTasks => [createdTask, ...prevTasks])
   }
 
+  const handleUpdateTask = (taskId: number, updates: Partial<Omit<Task, 'id'>>) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === taskId ? { ...task, ...updates } : task
+      )
+    );
+    // If we're in a task detail view, we might need to update that view's state as well.
+    // This is handled by React's state propagation.
+  };
+  
   const handleUpdateTaskStatus = (taskId: number, newStatus: Task['status']) => {
-    setTasks(prevTasks => prevTasks.map(task =>
-      task.id === taskId ? { ...task, status: newStatus } : task
-    ))
+    handleUpdateTask(taskId, { status: newStatus });
   }
 
   const handleAssignIncident = (incident: Incident, assigneeName: string) => {
@@ -153,6 +188,22 @@ const App: React.FC = () => {
     )
   }
 
+  const handleAddSupplyRequest = (itemName: string, requestedBy: string) => {
+    const newRequest: SupplyRequest = {
+        id: supplyRequests.length > 0 ? Math.max(...supplyRequests.map(r => r.id)) + 1 : 1,
+        itemName,
+        requestedBy,
+        status: 'Pendiente',
+        timestamp: new Date().toISOString(),
+    };
+    setSupplyRequests(prev => [newRequest, ...prev]);
+  };
+
+  const handleUpdateSupplyRequestStatus = (requestId: number, newStatus: SupplyRequest['status']) => {
+      setSupplyRequests(prev => prev.map(req => req.id === requestId ? { ...req, status: newStatus } : req));
+  };
+
+
   // By wrapping the content in a div with h-full, we ensure that the React app
   // has a root DOM element that correctly inherits the height from the #root element,
   // solving the issue where the content might otherwise render into a zero-height container.
@@ -167,14 +218,19 @@ const App: React.FC = () => {
           staff={staff}
           onAddStaff={handleAddStaff}
           onUpdateStaff={handleUpdateStaff}
+          onDeleteStaff={handleDeleteStaff}
           loggedInUser={loggedInUser}
           tasks={tasks}
           onAddTask={handleAddTask}
+          onUpdateTask={handleUpdateTask}
           onUpdateTaskStatus={handleUpdateTaskStatus}
           onAddCommentToTask={handleAddCommentToTask}
           incidents={incidents}
           onAssignIncident={handleAssignIncident}
           onAddIncident={handleAddIncident}
+          supplyRequests={supplyRequests}
+          onAddSupplyRequest={handleAddSupplyRequest}
+          onUpdateSupplyRequestStatus={handleUpdateSupplyRequestStatus}
         />
       )}
     </div>

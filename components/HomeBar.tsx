@@ -2,7 +2,7 @@
 import React from 'react';
 import { TabType } from './PhoneShell';
 import { UserRole } from '../src/App';
-import { HomeIcon, ClipboardList, AlertTriangle, Users, MessageSquareIcon, UserIcon } from './Icons';
+import { HomeIcon, ClipboardList, AlertTriangle, Users, BoxIcon } from './Icons';
 
 interface HomeBarProps {
   activeTab: TabType;
@@ -16,14 +16,13 @@ const HomeBar: React.FC<HomeBarProps> = ({ activeTab, setActiveTab, userRole }) 
     { id: 'tasks', icon: <ClipboardList className="w-6 h-6" />, label: 'Tareas', title: 'Gestión de Tareas' },
     { id: 'incidents', icon: <AlertTriangle className="w-6 h-6" />, label: 'Incidentes', title: 'Incidentes Reportados' },
     { id: 'staff', icon: <Users className="w-6 h-6" />, label: 'Personal', title: 'Gestión de Personal' },
-    { id: 'chat', icon: <MessageSquareIcon className="w-6 h-6" />, label: 'Chat', title: 'Chat' },
+    { id: 'supplies', icon: <BoxIcon className="w-6 h-6" />, label: 'Suministros', title: 'Solicitudes de Suministros' },
   ];
 
   const workerTabs: { id: TabType; icon: React.ReactNode; label: string; title: string }[] = [
     { id: 'my-tasks', icon: <ClipboardList className="w-6 h-6" />, label: 'Mis Tareas', title: 'Mis Tareas' },
     { id: 'report', icon: <AlertTriangle className="w-6 h-6" />, label: 'Reportar', title: 'Reportar Incidente' },
-    { id: 'chat', icon: <MessageSquareIcon className="w-6 h-6" />, label: 'Chat', title: 'Chat con Supervisor' },
-    { id: 'profile', icon: <UserIcon className="w-6 h-6" />, label: 'Perfil', title: 'Mi Perfil' },
+    { id: 'supplies', icon: <BoxIcon className="w-6 h-6" />, label: 'Suministros', title: 'Suministros' },
   ];
 
   const tabs = userRole === 'admin' ? adminTabs : workerTabs;

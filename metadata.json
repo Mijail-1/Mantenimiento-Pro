@@ -1,5 +1,7 @@
 {
   "name": "Mantenimiento Pro",
   "description": "A mobile application to streamline and digitize cleaning and maintenance task management in educational institutions, connecting staff and supervisors in real-time.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "camera"
+  ]
 }
