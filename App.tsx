@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import PhoneShell from './components/PhoneShell';
 import LoginScreen from './components/LoginScreen';
@@ -11,11 +12,24 @@ export interface StaffMember {
   password?: string;
 }
 
+// FIX: Add Comment interface to be used in the Task interface.
+export interface Comment {
+  id: number;
+  author: string;
+  text: string;
+  timestamp: string;
+}
+
+// FIX: Update Task interface to match the one used in child components, adding description, priority, dueDate, and comments.
 export interface Task {
   id: number;
   title: string;
+  description: string;
   assignee: string;
   status: 'Asignada' | 'En Progreso' | 'Completada';
+  priority: 'Baja' | 'Media' | 'Alta';
+  dueDate: string | null;
+  comments: Comment[];
 }
 
 export interface Incident {
@@ -34,11 +48,12 @@ const initialStaffMembers: StaffMember[] = [
   { id: 2, name: 'Luis García', phone: '5210987654321', password: 'password456' },
 ];
 
+// FIX: Update initial tasks to match the new Task interface structure.
 const initialTasks: Task[] = [
-  { id: 1, title: 'Limpiar Salón A-101', assignee: 'Ana Pérez', status: 'Completada' },
-  { id: 2, title: 'Revisar luces del pasillo B', assignee: 'Luis García', status: 'En Progreso' },
-  { id: 3, title: 'Vaciar papeleras del patio', assignee: 'Ana Pérez', status: 'Asignada' },
-  { id: 4, title: 'Desinfectar baños del 2do piso', assignee: 'Luis García', status: 'Asignada' },
+  { id: 1, title: 'Limpiar Salón A-101', description: 'Limpieza profunda del salón, incluyendo ventanas y pisos.', assignee: 'Ana Pérez', status: 'Completada', priority: 'Media', dueDate: '2024-07-15', comments: [] },
+  { id: 2, title: 'Revisar luces del pasillo B', description: 'Algunas luces parpadean, revisar y cambiar si es necesario.', assignee: 'Luis García', status: 'En Progreso', priority: 'Alta', dueDate: new Date().toISOString().split('T')[0], comments: [{ id: 1, author: 'Supervisor', text: 'Esto es urgente, por favor revisar hoy.', timestamp: '2024-07-16T10:00:00Z' }] },
+  { id: 3, title: 'Vaciar papeleras del patio', description: 'Vaciar todas las papeleras del patio central.', assignee: 'Ana Pérez', status: 'Asignada', priority: 'Baja', dueDate: '2024-08-01', comments: [] },
+  { id: 4, title: 'Desinfectar baños del 2do piso', description: 'Usar desinfectante de alto espectro en todos los sanitarios.', assignee: 'Luis García', status: 'Asignada', priority: 'Alta', dueDate: '2024-07-25', comments: [] },
 ];
 
 const initialIncidents: Incident[] = [
@@ -82,11 +97,13 @@ const App: React.FC = () => {
       );
   };
 
-  const handleAddTask = (newTask: Omit<Task, 'id' | 'status'>) => {
+  // FIX: Update signature and implementation to match the new Task structure.
+  const handleAddTask = (newTask: Omit<Task, 'id' | 'status' | 'comments'>) => {
       const createdTask: Task = {
           id: tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1,
           ...newTask,
           status: 'Asignada',
+          comments: [],
       };
       setTasks(prevTasks => [createdTask, ...prevTasks]);
   }
@@ -97,11 +114,15 @@ const App: React.FC = () => {
       ));
   };
   
+  // FIX: Update task creation to include all required fields from the new Task interface.
   const handleAssignIncident = (incident: Incident, assigneeName: string) => {
       // 1. Create a new task from the incident description
       handleAddTask({
-          title: incident.description,
+          title: `Incidente: ${incident.description.substring(0, 30)}...`,
+          description: incident.description,
           assignee: assigneeName,
+          priority: 'Media', // Default priority for incidents
+          dueDate: null,
       });
 
       // 2. Update the incident's status to 'Assigned'
@@ -119,6 +140,24 @@ const App: React.FC = () => {
         status: 'Nuevo',
     };
     setIncidents(prevIncidents => [createdIncident, ...prevIncidents]);
+  };
+  
+  // FIX: Add handler for adding comments to tasks, as expected by PhoneShell.
+  const handleAddCommentToTask = (taskId: number, commentText: string, author: string) => {
+    setTasks(prevTasks =>
+      prevTasks.map(task => {
+        if (task.id === taskId) {
+          const newComment: Comment = {
+            id: task.comments.length > 0 ? Math.max(...task.comments.map(c => c.id)) + 1 : 1,
+            author,
+            text: commentText,
+            timestamp: new Date().toISOString(),
+          };
+          return { ...task, comments: [...task.comments, newComment] };
+        }
+        return task;
+      })
+    );
   };
 
 
@@ -140,6 +179,7 @@ const App: React.FC = () => {
           tasks={tasks}
           onAddTask={handleAddTask}
           onUpdateTaskStatus={handleUpdateTaskStatus}
+          onAddCommentToTask={handleAddCommentToTask}
           incidents={incidents}
           onAssignIncident={handleAssignIncident}
           onAddIncident={handleAddIncident}

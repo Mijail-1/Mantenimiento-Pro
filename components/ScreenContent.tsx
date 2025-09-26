@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { TabType } from './PhoneShell';
 import { UserRole, StaffMember, Task, Incident } from '../src/App';
-import { PlusCircle, XIcon, WhatsAppIcon, UserPlusIcon } from './Icons';
+import { PlusCircle, XIcon, WhatsAppIcon, UserPlusIcon, ArrowLeftIcon, SendIcon, ClockIcon } from './Icons';
 
 const supervisor = { name: 'Supervisor', phone: '5215555555555' };
 
@@ -208,38 +207,60 @@ const DashboardScreen: React.FC<{
 };
 
 
-const CreateTaskModal: React.FC<{ workers: StaffMember[], onClose: () => void, onCreate: (task: Omit<Task, 'id' | 'status'>) => void }> = ({ workers, onClose, onCreate }) => {
+const CreateTaskModal: React.FC<{ workers: StaffMember[], onClose: () => void, onCreate: (task: Omit<Task, 'id' | 'status' | 'comments' | 'photo'>) => void }> = ({ workers, onClose, onCreate }) => {
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [assignee, setAssignee] = useState(workers[0]?.name || '');
+  const [priority, setPriority] = useState<Task['priority']>('Media');
+  const [dueDate, setDueDate] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title && assignee) {
-      onCreate({ title, assignee });
+      onCreate({ title, description, assignee, priority, dueDate: dueDate ? new Date(dueDate).toISOString() : null });
+      onClose();
     }
   };
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-11/12 max-w-sm">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm max-h-full overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-800 dark:text-white">Crear Nueva Tarea</h2>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">
                 <XIcon className="w-6 h-6"/>
             </button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="task-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título de la Tarea</label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="task-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Título</label>
             <input type="text" id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required />
           </div>
-          <div className="mb-6">
+           <div>
+            <label htmlFor="task-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
+            <textarea id="task-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+          </div>
+          <div>
             <label htmlFor="task-assignee" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Asignar a</label>
             <select id="task-assignee" value={assignee} onChange={(e) => setAssignee(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
               {workers.map(worker => <option key={worker.id} value={worker.name}>{worker.name}</option>)}
             </select>
           </div>
-          <button type="submit" className="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">Crear Tarea</button>
+           <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="task-priority" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prioridad</label>
+                <select id="task-priority" value={priority} onChange={(e) => setPriority(e.target.value as Task['priority'])} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <option value="Baja">Baja</option>
+                    <option value="Media">Media</option>
+                    <option value="Alta">Alta</option>
+                </select>
+              </div>
+              <div>
+                  <label htmlFor="task-duedate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vencimiento</label>
+                  <input type="datetime-local" id="task-duedate" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+              </div>
+           </div>
+          <button type="submit" className="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors mt-2">Crear Tarea</button>
         </form>
       </div>
     </div>
@@ -247,26 +268,54 @@ const CreateTaskModal: React.FC<{ workers: StaffMember[], onClose: () => void, o
 };
 
 
-const TasksScreen: React.FC<{ tasks: Task[], openModal: () => void }> = ({ tasks, openModal }) => {
+const TasksScreen: React.FC<{ tasks: Task[], openModal: () => void, onViewTask: (task: Task) => void }> = ({ tasks, openModal, onViewTask }) => {
     const getStatusColor = (status: Task['status']) => {
         switch (status) {
-            case 'Completada': return 'bg-green-100 text-green-800';
-            case 'En Progreso': return 'bg-yellow-100 text-yellow-800';
-            case 'Asignada': return 'bg-blue-100 text-blue-800';
+            case 'Completada': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+            case 'En Progreso': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+            case 'Asignada': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
         }
     };
+    const getPriorityColor = (priority: Task['priority']) => {
+        switch (priority) {
+            case 'Alta': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+            case 'Media': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+            case 'Baja': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        }
+    };
+
+    const formatDate = (dateString: string | null) => {
+        if (!dateString) return 'Sin fecha';
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
+    };
+
+    const isOverdue = (dateString: string | null) => {
+        if (!dateString) return false;
+        return new Date(dateString) < new Date();
+    };
+
     return (
-        <div className="p-4 space-y-3 relative h-full">
+        <div className="p-4 space-y-3 relative h-full pb-20">
             {tasks.map(task => (
-                <div key={task.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex justify-between items-center">
-                    <div>
+                <button key={task.id} onClick={() => onViewTask(task)} className="w-full bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex justify-between items-start text-left hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div className="flex-1 pr-2">
                         <p className="font-semibold text-gray-800 dark:text-white">{task.title}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{task.assignee}</p>
+                        <div className={`flex items-center text-xs mt-2 ${isOverdue(task.dueDate) && task.status !== 'Completada' ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                           <ClockIcon className="w-3 h-3 mr-1"/>
+                           <span>Vence: {formatDate(task.dueDate)}</span>
+                        </div>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(task.status)}`}>
-                        {task.status}
-                    </span>
-                </div>
+                    <div className="flex flex-col items-end space-y-2">
+                         <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+                            {task.priority}
+                        </span>
+                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(task.status)}`}>
+                            {task.status}
+                        </span>
+                    </div>
+                </button>
             ))}
             <button onClick={openModal} className="absolute bottom-6 right-6 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600 transition-transform transform hover:scale-110">
                 <PlusCircle className="w-8 h-8"/>
@@ -274,6 +323,111 @@ const TasksScreen: React.FC<{ tasks: Task[], openModal: () => void }> = ({ tasks
         </div>
     );
 };
+
+const TaskDetailScreen: React.FC<{
+  task: Task;
+  onBack: () => void;
+  onAddComment: (taskId: number, commentText: string) => void;
+}> = ({ task, onBack, onAddComment }) => {
+    const [newComment, setNewComment] = useState('');
+    
+    const handleSubmitComment = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newComment.trim()) {
+            onAddComment(task.id, newComment.trim());
+            setNewComment('');
+        }
+    };
+    
+    const DetailItem: React.FC<{label: string; value: string}> = ({label, value}) => (
+        <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
+            <p className="font-semibold text-gray-800 dark:text-white">{value}</p>
+        </div>
+    );
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    };
+    
+    const formatDueDate = (dateString: string | null) => {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
+    };
+
+
+    return (
+        <div className="h-full flex flex-col bg-gray-100 dark:bg-gray-900">
+            {/* Header */}
+            <header className="w-full h-14 px-2 flex items-center text-black dark:text-white bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex-shrink-0 z-10 sticky top-0">
+                <button onClick={onBack} aria-label="Volver" className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                    <ArrowLeftIcon className="h-6 w-6" />
+                </button>
+                <h1 className="text-lg font-bold ml-2 truncate">{task.title}</h1>
+            </header>
+            
+            {/* Content */}
+            <main className="flex-grow overflow-y-auto p-4 pb-20">
+                <div className="space-y-6">
+                    {/* Details Card */}
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 border-b pb-2 dark:border-gray-700">Detalles</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <DetailItem label="Asignado a" value={task.assignee} />
+                            <DetailItem label="Estado" value={task.status} />
+                            <DetailItem label="Prioridad" value={task.priority} />
+                            <DetailItem label="Vencimiento" value={formatDueDate(task.dueDate)} />
+                        </div>
+                    </div>
+                    {/* Description Card */}
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                         <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Descripción</h3>
+                         <p className="text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{task.description || 'No hay descripción.'}</p>
+                    </div>
+                    {/* Comments Card */}
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Comentarios</h3>
+                        <div className="space-y-4">
+                            {task.comments.length > 0 ? (
+                                task.comments.map(comment => (
+                                    <div key={comment.id}>
+                                        <div className="flex justify-between items-center">
+                                            <p className="font-semibold text-sm text-gray-800 dark:text-white">{comment.author}</p>
+                                            <p className="text-xs text-gray-400 dark:text-gray-500">{formatDate(comment.timestamp)}</p>
+                                        </div>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{comment.text}</p>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-sm text-center text-gray-500 dark:text-gray-400 py-4">No hay comentarios aún.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+             {/* Comment Input Footer */}
+            <footer className="w-full max-w-md mx-auto p-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 fixed bottom-16 left-1/2 -translate-x-1/2">
+                <form onSubmit={handleSubmitComment} className="flex items-center space-x-2">
+                    <input 
+                        type="text"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Añadir un comentario..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                    <button type="submit" className="bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600" aria-label="Enviar comentario">
+                        <SendIcon className="w-5 h-5"/>
+                    </button>
+                </form>
+            </footer>
+        </div>
+    );
+};
+
+
 
 const AssignTaskFromIncidentModal: React.FC<{
   incident: Incident;
@@ -600,6 +754,7 @@ const WorkerTasksScreen: React.FC<{
   tasks: Task[],
   onUpdateTaskStatus: (taskId: number, newStatus: Task['status']) => void;
 }> = ({ loggedInUser, tasks: allTasks, onUpdateTaskStatus }) => {
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   if (!loggedInUser) return null;
 
   const myTasks = allTasks.filter(t => t.assignee === loggedInUser.name);
@@ -609,27 +764,77 @@ const WorkerTasksScreen: React.FC<{
     onUpdateTaskStatus(task.id, newStatus);
   };
   
+    const getPriorityColor = (priority: Task['priority']) => {
+        switch (priority) {
+            case 'Alta': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+            case 'Media': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+            case 'Baja': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        }
+    };
+
+    const formatDate = (dateString: string | null) => {
+        if (!dateString) return 'Sin fecha';
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
+    };
+
+    const isOverdue = (dateString: string | null) => {
+        if (!dateString) return false;
+        return new Date(dateString) < new Date();
+    };
+
+
   return (
-    <div className="p-4">
+    <div className="p-4 space-y-3">
         {myTasks.length === 0 ? (
              <div className="text-center py-10">
                 <p className="text-gray-500 dark:text-gray-400">No tienes tareas asignadas.</p>
             </div>
         ) : (
             myTasks.map(task => (
-                 <div key={task.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-3 flex items-center">
+                 <div key={task.id} className={`bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-3 flex items-start space-x-3 transition-opacity ${task.status === 'Completada' ? 'opacity-60' : ''}`}>
                     <input 
                         type="checkbox" 
                         id={`task-${task.id}`}
                         checked={task.status === 'Completada'}
                         onChange={() => toggleTask(task)}
-                        className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="h-6 w-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
                     />
-                    <label htmlFor={`task-${task.id}`} className={`ml-3 text-gray-700 dark:text-gray-200 ${task.status === 'Completada' ? 'line-through text-gray-400 dark:text-gray-500' : ''}`}>
-                        {task.title}
-                    </label>
+                    <div className="flex-1">
+                        <label htmlFor={`task-${task.id}`} className={`font-semibold text-gray-800 dark:text-white ${task.status === 'Completada' ? 'line-through text-gray-400 dark:text-gray-500' : ''}`}>
+                            {task.title}
+                        </label>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 whitespace-pre-wrap">
+                            {task.description}
+                        </p>
+
+                        {task.photo && (
+                            <button onClick={() => setViewingImage(task.photo!)} className="mt-2 rounded-md overflow-hidden">
+                                <img src={task.photo} alt="Evidencia de tarea" className="h-20 w-20 object-cover" />
+                            </button>
+                        )}
+
+                        <div className="flex items-center space-x-4 mt-3 text-sm">
+                             <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${getPriorityColor(task.priority)}`}>
+                                {task.priority}
+                            </span>
+                            <div className={`flex items-center text-xs ${isOverdue(task.dueDate) && task.status !== 'Completada' ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                               <ClockIcon className="w-3 h-3 mr-1"/>
+                               <span>Vence: {formatDate(task.dueDate)}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             ))
+        )}
+
+        {viewingImage && (
+            <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50" onClick={() => setViewingImage(null)}>
+                <img src={viewingImage} alt="Incidente en tamaño completo" className="max-w-full max-h-full" />
+                <button className="absolute top-4 right-4 text-white text-2xl">
+                    <XIcon className="w-8 h-8"/>
+                </button>
+            </div>
         )}
     </div>
   );
@@ -771,8 +976,9 @@ interface ScreenContentProps {
   onUpdateStaff: (staffId: number, updatedDetails: Partial<Omit<StaffMember, 'id'>>) => void;
   loggedInUser: StaffMember | null;
   tasks: Task[];
-  onAddTask: (task: Omit<Task, 'id' | 'status'>) => void;
+  onAddTask: (task: Omit<Task, 'id' | 'status' | 'comments'>) => void;
   onUpdateTaskStatus: (taskId: number, newStatus: Task['status']) => void;
+  onAddCommentToTask: (taskId: number, commentText: string, author: string) => void;
   incidents: Incident[];
   onAssignIncident: (incident: Incident, assigneeName: string) => void;
   onAddIncident: (incident: Omit<Incident, 'id' | 'status'>) => void;
@@ -789,6 +995,7 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
     tasks,
     onAddTask,
     onUpdateTaskStatus,
+    onAddCommentToTask,
     incidents,
     onAssignIncident,
     onAddIncident,
@@ -801,6 +1008,7 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
   const [editingStaffMember, setEditingStaffMember] = useState<StaffMember | null>(null);
   const [taskFilter, setTaskFilter] = useState<'all' | 'pending'>('all');
   const [incidentFilter, setIncidentFilter] = useState<'all' | 'new'>('all');
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
 
   useEffect(() => {
     if (activeTab !== 'tasks') {
@@ -809,6 +1017,8 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
     if (activeTab !== 'incidents') {
         setIncidentFilter('all');
     }
+    // Go back to list view when changing tabs
+    setViewingTask(null);
   }, [activeTab]);
 
   const handleMetricClick = (metric: 'pendingTasks' | 'newIncidents' | 'staff') => {
@@ -824,7 +1034,7 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
   };
 
 
-  const handleCreateTask = (newTask: Omit<Task, 'id' | 'status'>) => {
+  const handleCreateTask = (newTask: Omit<Task, 'id' | 'status' | 'comments' | 'photo'>) => {
       onAddTask(newTask);
       setIsTaskModalOpen(false);
   }
@@ -841,6 +1051,10 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
       });
       setIsIncidentModalOpen(false);
   };
+  
+   const handleAddComment = (taskId: number, commentText: string) => {
+    onAddCommentToTask(taskId, commentText, 'Supervisor');
+  }
 
   const handleAssignIncidentSubmit = (assigneeName: string) => {
     if (assigningIncident) {
@@ -864,12 +1078,22 @@ const ScreenContent: React.FC<ScreenContentProps> = ({
       
       switch (activeTab) {
         case 'dashboard': return <DashboardScreen staff={staff} pendingTasksCount={pendingTasksCount} newIncidentsCount={newIncidentsCount} onMetricClick={handleMetricClick} tasks={tasks} incidents={incidents} />;
-        case 'tasks': return (
-            <>
-                <TasksScreen tasks={filteredTasks} openModal={() => setIsTaskModalOpen(true)} />
-                {isTaskModalOpen && <CreateTaskModal workers={staff} onClose={() => setIsTaskModalOpen(false)} onCreate={handleCreateTask}/>}
-            </>
-        );
+        case 'tasks': 
+            if (viewingTask) {
+                return (
+                    <TaskDetailScreen 
+                        task={viewingTask}
+                        onBack={() => setViewingTask(null)}
+                        onAddComment={handleAddComment}
+                    />
+                );
+            }
+            return (
+                <>
+                    <TasksScreen tasks={filteredTasks} openModal={() => setIsTaskModalOpen(true)} onViewTask={setViewingTask} />
+                    {isTaskModalOpen && <CreateTaskModal workers={staff} onClose={() => setIsTaskModalOpen(false)} onCreate={handleCreateTask}/>}
+                </>
+            );
         case 'incidents': return (
             <>
                 <IncidentsScreen incidents={filteredIncidents} onOpenAssignModal={setAssigningIncident} openModal={() => setIsIncidentModalOpen(true)} />

@@ -17,8 +17,9 @@ interface PhoneShellProps {
   onUpdateStaff: (staffId: number, updatedDetails: Partial<Omit<StaffMember, 'id'>>) => void;
   loggedInUser: StaffMember | null;
   tasks: Task[];
-  onAddTask: (task: Omit<Task, 'id' | 'status'>) => void;
+  onAddTask: (task: Omit<Task, 'id' | 'status' | 'comments'>) => void;
   onUpdateTaskStatus: (taskId: number, newStatus: Task['status']) => void;
+  onAddCommentToTask: (taskId: number, commentText: string, author: string) => void;
   incidents: Incident[];
   onAssignIncident: (incident: Incident, assigneeName: string) => void;
   onAddIncident: (incident: Omit<Incident, 'id' | 'status'>) => void;
@@ -34,6 +35,7 @@ const PhoneShell: React.FC<PhoneShellProps> = ({
   tasks,
   onAddTask,
   onUpdateTaskStatus,
+  onAddCommentToTask,
   incidents,
   onAssignIncident,
   onAddIncident,
@@ -64,6 +66,7 @@ const PhoneShell: React.FC<PhoneShellProps> = ({
           tasks={tasks}
           onAddTask={onAddTask}
           onUpdateTaskStatus={onUpdateTaskStatus}
+          onAddCommentToTask={onAddCommentToTask}
           incidents={incidents}
           onAssignIncident={onAssignIncident}
           onAddIncident={onAddIncident}
